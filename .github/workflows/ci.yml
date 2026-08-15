@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run validate
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Push to Zapier
+        env:
+          ZAPIER_DEPLOY_KEY: ${{ secrets.ZAPIER_DEPLOY_KEY }}
+          ZAPIER_APP_ID: ${{ secrets.ZAPIER_APP_ID }}
+        run: |
+          if [ -z "$ZAPIER_DEPLOY_KEY" ] || [ -z "$ZAPIER_APP_ID" ]; then
+            echo "Skipping zapier push. Add GitHub secrets ZAPIER_DEPLOY_KEY and ZAPIER_APP_ID."
+            echo "Deploy key: https://developer.zapier.com/partner-settings/deploy-keys/"
+            echo "App id: after npx zapier register, copy id from .zapierapprc"
+            exit 0
+          fi
+          node -e '
+            const raw = process.env.ZAPIER_APP_ID;
+            const n = Number(raw);
+            const id = Number.isFinite(n) && String(n) === raw ? n : raw;
+            require("fs").writeFileSync(".zapierapprc", JSON.stringify({ id }) + "\n");
+          '
+          npx zapier push
