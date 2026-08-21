@@ -1,0 +1,134 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "index.js"
+      - "authentication.js"
+      - "lib/**"
+      - "triggers/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/publish.yml"
+
+concurrency:
+  group: publish-zapier
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+        github.event.head_commit != null &&
+        !startsWith(github.event.head_commit.message, 'chore(release):') &&
+        !contains(github.event.head_commit.message, '[skip release]')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run validate
+
+  publish:
+    needs: test
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+        github.event.head_commit != null &&
+        !startsWith(github.event.head_commit.message, 'chore(release):') &&
+        !contains(github.event.head_commit.message, '[skip release]')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Auto-bump patch version and CHANGELOG
+        id: version
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          LATEST="$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')"
+          RAW="${LATEST#v}"
+          IFS=. read -r MAJOR MINOR PATCH <<<"$RAW"
+          MAJOR="${MAJOR:-0}"; MINOR="${MINOR:-0}"; PATCH="${PATCH:-0}"
+          PATCH=$((PATCH + 1))
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          TAG="v${VERSION}"
+          NOTES="$(git log "${LATEST}..HEAD" --pretty=format:'- %s' --no-merges 2>/dev/null | sed '/^chore(release):/d' || true)"
+          if [ -z "$NOTES" ]; then NOTES="- Maintenance release."; fi
+          export VERSION NOTES
+          node <<'NODE'
+          const fs = require("fs");
+          const v = process.env.VERSION;
+          const notes = process.env.NOTES;
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.version = v;
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          let body = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8") : "# Changelog\n\n";
+          const idx = body.indexOf("## ");
+          const prior = idx >= 0 ? body.slice(idx) : "";
+          fs.writeFileSync("CHANGELOG.md", `# Changelog\n\n## ${v}\n\n${notes}\n\n${prior}`);
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): ${TAG}"
+            git push origin HEAD:main
+          fi
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create and push tag
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then echo "Tag exists"; exit 0; fi
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+      - name: Push to Zapier
+        env:
+          ZAPIER_DEPLOY_KEY: ${{ secrets.ZAPIER_DEPLOY_KEY }}
+          ZAPIER_APP_ID: ${{ secrets.ZAPIER_APP_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ZAPIER_DEPLOY_KEY:-}" ] || [ -z "${ZAPIER_APP_ID:-}" ]; then
+            echo "Zapier secrets missing — GitHub Release only."
+            exit 0
+          fi
+          node -e '
+            const raw = process.env.ZAPIER_APP_ID;
+            const n = Number(raw);
+            const id = Number.isFinite(n) && String(n) === raw ? n : raw;
+            require("fs").writeFileSync(".zapierapprc", JSON.stringify({ id }) + "\n");
+          '
+          npx zapier push
+      - name: Package archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git archive --format=zip --prefix="zapier-praxicraft-assess-${VERSION}/" -o "zapier-praxicraft-assess-${VERSION}.zip" HEAD
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            zapier-praxicraft-assess-*.zip
