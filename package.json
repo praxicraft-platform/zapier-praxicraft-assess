@@ -1,7 +1,7 @@
 {
   "name": "zapier-praxicraft-assess",
   "version": "2.0.0",
-  "description": "Zapier integration for Praxicraft Assess \u2014 same Public API surface as the n8n node: invites, results, pipelines, interviews, and REST Hook triggers.",
+  "description": "Zapier integration for Praxicraft Assess — same Public API surface as the n8n node: invites, results, pipelines, interviews, and REST Hook triggers.",
   "main": "index.js",
   "scripts": {
     "test": "node --test tests/*.test.js",

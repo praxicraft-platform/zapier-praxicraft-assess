@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.0
+
+- Maintenance release.
 
 ## 2.0.0
 
