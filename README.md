@@ -75,8 +75,8 @@ Creates are writes. Searches are GET / list. All paths target `/api/v1/public/â€
 
 | Resource | Common actions |
 |----------|----------------|
-| Assessment | Find Assessments, Find Assessment, Create / Update / Duplicate Assessment, Find Assessment Results, Attach / Replace / Remove Cases |
-| Case | Find Org Cases, Find Platform Cases, Create / Find / Update / Delete Case |
+| Assessment | Find Assessments, Find Assessment, Create / Update / Duplicate Assessment, Find Assessment Results, Attach / Replace / Remove Tasks |
+| Task | Find Org Tasks, Find Platform Tasks, Create / Find / Update / Delete Task |
 | Invitation | Find Invitations, Invite Candidate, Bulk Invite Candidates, Find Invitation, Find Invitation Result, Remind Candidate, Cancel Invitation |
 | Pipeline | Find Pipelines, Enroll Candidate, Bulk Enroll Candidates, Find Enrollments, Reject / Hold / Unhold Enrollment |
 | Webhook | Find Webhooks, Create / Update / Delete Webhook, Find Webhook Deliveries, Test Webhook |
@@ -85,7 +85,7 @@ Creates are writes. Searches are GET / list. All paths target `/api/v1/public/â€
 | Integration | Find Integrations, Find Integration Connect URL, Test Integration |
 | Trigger | **New Assess Event** â€” one event per Zap |
 
-Create, update, and delete steps use dropdowns for assessments, cases, invitations, pipelines, enrollments, webhooks, interviews, templates, and squads. You can still map an id from a previous step via **Custom value**. Bulk invite and enroll accept a JSON list of candidates.
+Create, update, and delete steps use dropdowns for assessments, tasks, invitations, pipelines, enrollments, webhooks, interviews, templates, and squads. You can still map an id from a previous step via **Custom value**. Bulk invite and enroll accept a JSON list of candidates.
 
 ### Invite a candidate
 
@@ -119,7 +119,7 @@ The step returns `invite_token` and `invite_url`.
 ### Build and activate an assessment
 
 1. Action **Create Assessment** (title, time limit, passing score)
-2. Action **Attach Cases** with comma-separated case UUIDs
+2. Action **Attach Tasks** with comma-separated task UUIDs
 3. Action **Update Assessment** â†’ Status `active`
 
 ### Enroll into a hiring pipeline

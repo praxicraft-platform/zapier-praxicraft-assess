@@ -14,9 +14,9 @@ describe("CRUD dropdowns", () => {
   it("registers hidden list triggers for dropdowns", () => {
     for (const key of [
       "hidden_assessment",
-      "hidden_org_case",
-      "hidden_all_case",
-      "hidden_assessment_case",
+      "hidden_org_task",
+      "hidden_all_task",
+      "hidden_assessment_task",
       "hidden_invitation",
       "hidden_pipeline",
       "hidden_enrollment",
@@ -46,9 +46,9 @@ describe("CRUD dropdowns", () => {
   });
 
   it("loads assessment cases and enrollments only after a parent is chosen", () => {
-    assert.equal(App.triggers.hidden_assessment_case.operation.perform.length, 2);
+    assert.equal(App.triggers.hidden_assessment_task.operation.perform.length, 2);
     return Promise.all([
-      App.triggers.hidden_assessment_case.operation.perform({}, { inputData: {} }).then((rows) => {
+      App.triggers.hidden_assessment_task.operation.perform({}, { inputData: {} }).then((rows) => {
         assert.deepEqual(rows, []);
       }),
       App.triggers.hidden_enrollment.operation.perform({}, { inputData: {} }).then((rows) => {
